@@ -1,0 +1,4 @@
+Flask>=2.2
+pywebview>=4.0
+# Optional: use a production WSGI server like waitress
+# waitress>=2.2
