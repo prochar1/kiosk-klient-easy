@@ -5,8 +5,9 @@ Quick start
 1. Create virtualenv and install dependencies:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\activate
+# Create a project-local virtualenv (this repo uses `.venv312`)
+python -m venv .venv312
+& ".\.venv312\Scripts\Activate.ps1"
 pip install -r requirements.txt
 ```
 
@@ -20,11 +21,19 @@ The app starts a local webserver and opens a native window which loads the HTML 
 
 Build single-file .exe with PyInstaller
 
-Install PyInstaller and run:
+Install PyInstaller into the active virtualenv and run the recommended build command:
 
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed main.py
+# recommended: clean build and put exe into `dist/`
+pyinstaller --noconfirm --onefile --windowed --clean --distpath dist main.py
+```
+
+After the build, copy your `html` folder next to the produced EXE — the application requires an external `html/` directory at runtime and will exit with an error dialog if it's missing:
+
+```powershell
+# copy html into the dist folder next to the exe
+Copy-Item -Recurse -Force .\html .\dist\html
 ```
 
 Notes
@@ -41,4 +50,8 @@ pyinstaller --noconfirm --onefile --windowed main.py
 # copy -Recurse html dist\html
 ```
 
-- Notes: The built EXE will exit with an error if `dist\html` is missing. Ensure WebView2 runtime is installed on target machines.
+-- Notes:
+
+- The built EXE enforces using an external `html/` folder located next to the executable — do NOT pass `--add-data` for `html` when building. Distribute the `html` folder alongside `main.exe` (see copy example above).
+- If `dist\html` is missing the EXE will show an error dialog and exit.
+- On Windows `pywebview` will use Microsoft Edge WebView2 — make sure the WebView2 runtime is installed on target machines.
