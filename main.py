@@ -51,48 +51,84 @@ def find_free_port():
 
 
 def get_html_dir():
-    # When the app is frozen (PyInstaller), prefer an external `html/`
-    # directory located next to the executable. This allows distributing
-    # the EXE separately from the HTML files.
+    # When the app is frozen (PyInstaller), look for content next to the
+    # executable first, then in an external `html/` directory.
     if getattr(sys, 'frozen', False):
-        # When frozen, require an external `html/` directory located next to
-        # the executable. Do NOT fall back to bundled resources — this enforces
-        # that the EXE always reads HTML from the external folder.
         exe_dir = os.path.dirname(sys.executable)
-        external_html = os.path.join(exe_dir, 'html')
-        if os.path.isdir(external_html):
-            return external_html
-        show_error_dialog(f'Required external "html" folder not found at:\n{external_html}', 'Missing HTML folder')
-        sys.exit(1)
+        return exe_dir
     else:
         base = os.path.abspath(os.path.dirname(__file__))
 
-    return os.path.join(base, 'html')
+    return base
 
 
-def create_app(html_dir):
+def get_html_search_dirs():
+    base_dir = get_html_dir()
+    return [base_dir, os.path.join(base_dir, 'html')]
+
+
+def find_existing_file(search_dirs, path):
+    for directory in search_dirs:
+        full = os.path.join(directory, path)
+        if os.path.isfile(full):
+            return directory, full
+    return None, None
+
+
+def force_window_topmost(window):
+    if not sys.platform.startswith('win'):
+        return
+
+    try:
+        native = getattr(window, 'native', None)
+        if native is None:
+            return
+
+        hwnd = native.Handle.ToInt32()
+        swp_nomove = 0x0002
+        swp_nosize = 0x0001
+        swp_showwindow = 0x0040
+        hwnd_topmost = -1
+
+        ctypes.windll.user32.SetWindowPos(
+            hwnd,
+            hwnd_topmost,
+            0,
+            0,
+            0,
+            0,
+            swp_nomove | swp_nosize | swp_showwindow,
+        )
+        ctypes.windll.user32.SetForegroundWindow(hwnd)
+    except Exception:
+        pass
+
+
+def create_app(html_dirs):
     app = Flask(__name__, static_folder=None)
 
     @app.route('/', defaults={'path': 'index.html'})
     @app.route('/<path:path>')
     def serve(path):
-        full = os.path.join(html_dir, path)
-        if os.path.isfile(full):
-            return send_from_directory(html_dir, path)
-        else:
+        directory, full = find_existing_file(html_dirs, path)
+        if full is None:
             abort(404)
+        return send_from_directory(directory, path)
 
     return app
 
 
 def main():
-    html_dir = get_html_dir()
-    if not os.path.isdir(html_dir):
-        show_error_dialog(f'html folder not found at:\n{html_dir}\n\nCreate a folder named "html" in the project directory (or next to the executable).', 'Missing HTML folder')
+    html_dirs = get_html_search_dirs()
+    if not any(os.path.isfile(os.path.join(directory, 'index.html')) for directory in html_dirs):
+        show_error_dialog(
+            'index.html not found in:\n' + '\n'.join(html_dirs) + '\n\nCreate index.html in the project root or in the html folder.',
+            'Missing HTML file',
+        )
         sys.exit(1)
 
     port = find_free_port()
-    app = create_app(html_dir)
+    app = create_app(html_dirs)
 
     server_thread = threading.Thread(
         target=app.run,
@@ -140,6 +176,8 @@ def main():
     except TypeError:
         # Fallback if `frameless` or positioning is not supported by the backend.
         window = webview.create_window('Kiosk App', url, width=1920, height=1080, resizable=False)
+
+    window.events.shown += force_window_topmost
 
     webview.start()
 

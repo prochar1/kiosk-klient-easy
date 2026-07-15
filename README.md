@@ -26,7 +26,7 @@ Install PyInstaller into the active virtualenv and run the recommended build com
 ```powershell
 pip install pyinstaller
 # recommended: clean build and put exe into `dist/`
-pyinstaller --noconfirm --onefile --windowed --clean --distpath dist main.py
+pyinstaller --noconfirm --onefile --windowed --clean --distpath dist main.spec
 ```
 
 After the build, copy your `html` folder next to the produced EXE — the application requires an external `html/` directory at runtime and will exit with an error dialog if it's missing:
@@ -40,18 +40,18 @@ Notes
 
 - On Windows `pywebview` will use Microsoft Edge WebView2 — make sure the WebView2 runtime is installed on target machines.
   -- This project enforces using an external `html/` folder located next to the executable.
-- Do NOT pass `--add-data` for `html` when building; instead distribute the `html` folder alongside the produced `main.exe`.
+- Do NOT pass `--add-data` for `html` when building; instead distribute the `html` folder alongside the produced `kiosk.exe`.
 - Example packaging workflow:
 
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed main.py
+pyinstaller --noconfirm --onefile --windowed main.spec
 # After build, copy your html folder next to the produced exe:
 # copy -Recurse html dist\html
 ```
 
 -- Notes:
 
-- The built EXE enforces using an external `html/` folder located next to the executable — do NOT pass `--add-data` for `html` when building. Distribute the `html` folder alongside `main.exe` (see copy example above).
+- The built EXE enforces using an external `html/` folder located next to the executable — do NOT pass `--add-data` for `html` when building. Distribute the `html` folder alongside `kiosk.exe` (see copy example above).
 - If `dist\html` is missing the EXE will show an error dialog and exit.
 - On Windows `pywebview` will use Microsoft Edge WebView2 — make sure the WebView2 runtime is installed on target machines.
