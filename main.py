@@ -5,6 +5,7 @@ import socket
 import time
 from flask import Flask, send_from_directory, abort
 import ctypes
+from ctypes import wintypes
 
 try:
     import webview
@@ -75,6 +76,34 @@ def find_existing_file(search_dirs, path):
     return None, None
 
 
+def get_launch_screen():
+    if not sys.platform.startswith('win'):
+        return None
+
+    # Match the physical coordinates used by the Windows webview backend.
+    ctypes.windll.user32.SetProcessDPIAware()
+    position = wintypes.POINT()
+    if not ctypes.windll.user32.GetCursorPos(ctypes.byref(position)):
+        raise ctypes.WinError()
+
+    for screen in webview.screens:
+        if (screen.x <= position.x < screen.x + screen.width
+                and screen.y <= position.y < screen.y + screen.height):
+            return screen
+
+    raise RuntimeError('No monitor found at the launch cursor position.')
+
+
+def fit_window_to_screen(window, screen):
+    if screen is None:
+        return
+
+    from System.Drawing import Rectangle
+
+    # Bypass backend placement scaling, which can select the wrong monitor.
+    window.native.Bounds = Rectangle(screen.x, screen.y, screen.width, screen.height)
+
+
 def force_window_topmost(window):
     if not sys.platform.startswith('win'):
         return
@@ -119,6 +148,12 @@ def create_app(html_dirs):
 
 
 def main():
+    try:
+        launch_screen = get_launch_screen() if webview is not None else None
+    except (OSError, RuntimeError) as error:
+        show_error_dialog(str(error), 'Monitor detection failed')
+        sys.exit(1)
+
     html_dirs = get_html_search_dirs()
     if not any(os.path.isfile(os.path.join(directory, 'index.html')) for directory in html_dirs):
         show_error_dialog(
@@ -156,27 +191,19 @@ def main():
             pass
         return
 
-    # Kiosk mode: exact Full HD, borderless, non-resizable, positioned at (0,0).
-    # Note: `frameless=True` makes the window borderless; `resizable=False` disables resizing.
-    try:
-        window = webview.create_window(
-            'Kiosk App',
-            url,
-            width=1920,
-            height=1080,
-            x=0,
-            y=0,
-            resizable=False,
-            min_size=(1920, 1080),
-            frameless=True,
-            shadow=False,
-            on_top=True,
-            easy_drag=False
-        )
-    except TypeError:
-        # Fallback if `frameless` or positioning is not supported by the backend.
-        window = webview.create_window('Kiosk App', url, width=1920, height=1080, resizable=False)
+    window = webview.create_window(
+        'Kiosk App',
+        url,
+        screen=launch_screen,
+        fullscreen=True,
+        resizable=False,
+        frameless=True,
+        shadow=False,
+        on_top=True,
+        easy_drag=False,
+    )
 
+    window.events.before_show += lambda: fit_window_to_screen(window, launch_screen)
     window.events.shown += force_window_topmost
 
     webview.start()

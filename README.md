@@ -19,6 +19,18 @@ python main.py
 
 The app starts a local webserver and opens a native window which loads the HTML from the `html/` folder.
 
+On Windows it always starts fullscreen on the monitor containing the mouse cursor
+at startup (for example, the monitor where you double-click the EXE or shortcut).
+It uses that monitor's full resolution, including the taskbar area, rather than a
+fixed 1920 x 1080 window. Place the cursor on the desired monitor before launching
+from a keyboard or terminal. On other platforms it uses the default fullscreen monitor.
+
+Run monitor-selection regression tests:
+
+```powershell
+python -m unittest -v test_main
+```
+
 Build single-file .exe with PyInstaller
 
 Install PyInstaller into the active virtualenv and run the recommended build command:
@@ -26,7 +38,7 @@ Install PyInstaller into the active virtualenv and run the recommended build com
 ```powershell
 pip install pyinstaller
 # recommended: clean build and put exe into `dist/`
-pyinstaller --noconfirm --onefile --windowed --clean --distpath dist main.spec
+pyinstaller --noconfirm --clean --distpath dist main.spec
 ```
 
 After the build, copy your `html` folder next to the produced EXE — the application requires an external `html/` directory at runtime and will exit with an error dialog if it's missing:
@@ -45,7 +57,7 @@ Notes
 
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed main.spec
+pyinstaller --noconfirm main.spec
 # After build, copy your html folder next to the produced exe:
 # copy -Recurse html dist\html
 ```
